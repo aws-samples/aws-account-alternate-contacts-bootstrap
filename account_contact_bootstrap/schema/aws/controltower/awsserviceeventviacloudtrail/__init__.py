@@ -1,0 +1,10 @@
+from __future__ import absolute_import
+
+from schema.aws.controltower.awsserviceeventviacloudtrail.marshaller import Marshaller
+from schema.aws.controltower.awsserviceeventviacloudtrail.AWSEvent import AWSEvent
+from schema.aws.controltower.awsserviceeventviacloudtrail.AWSServiceEventViaCloudTrail import AWSServiceEventViaCloudTrail
+from schema.aws.controltower.awsserviceeventviacloudtrail.Account import Account
+from schema.aws.controltower.awsserviceeventviacloudtrail.CreateManagedAccountStatus import CreateManagedAccountStatus
+from schema.aws.controltower.awsserviceeventviacloudtrail.OrganizationalUnit import OrganizationalUnit
+from schema.aws.controltower.awsserviceeventviacloudtrail.ServiceEventDetails import ServiceEventDetails
+from schema.aws.controltower.awsserviceeventviacloudtrail.UserIdentity import UserIdentity

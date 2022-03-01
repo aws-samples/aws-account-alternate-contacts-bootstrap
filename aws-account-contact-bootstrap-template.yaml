@@ -1,0 +1,200 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Cloudformation Template for the Bootstrapping Alternate Contacts in newly created AWS Account
+
+Parameters:
+  BillingContactEmail:
+    Type: String
+    Default: jdoe@example.com
+  BillingContactName:
+    Type: String
+    Default: John Doe
+  BillingContactTitle:
+    Type: String
+    Default: Account Owner
+  BillingContactPhone:
+    Type: String
+    Default: +1 555 555 5555
+  OperationsContactEmail:
+    Type: String
+    Default: jdoe@example.com
+  OperationsContactName:
+    Type: String
+    Default: John Doe
+  OperationsContactTitle:
+    Type: String
+    Default: Account Owner
+  OperationsContactPhone:
+    Type: String
+    Default: +1 555 555 5555
+  SecurityContactEmail:
+    Type: String
+    Default: jdoe@example.com
+  SecurityContactName:
+    Type: String
+    Default: John Doe
+  SecurityContactTitle:
+    Type: String
+    Default: Account Owner
+  SecurityContactPhone:
+    Type: String
+    Default: +1 555 555 5555
+  TypeOfDeployment:
+    Type: String
+    Default: ORGANIZATIONS
+    Description: Choose between ORGANIZATIONS and CONTROL_TOWER on your current Multi-account setup.
+    AllowedValues:
+      - ORGANIZATIONS
+      - CONTROL_TOWER
+
+Conditions:
+  organizationsEvent: !Equals [!Ref TypeOfDeployment, "ORGANIZATIONS"]
+
+  ControlTowerEvent: !Equals [!Ref TypeOfDeployment, "CONTROL_TOWER"]
+
+Resources:
+  AccountContactBootstrapPermissionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: 
+              - account:PutAlternateContact
+            Resource:
+              - Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":account::"
+                      - Ref: AWS::AccountId
+                      - ":account/o-*/*" 
+  
+  OrgCreateAccountContactBootstrapLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${OrgCreateAccountContactBootstrapFunction}
+      RetentionInDays: 7
+
+  OrgCreateAccountContactBootstrapFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: account_contact_bootstrap
+      Handler: create_account_event/handle_create_account_event.lambda_handler
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 300
+      Environment:
+        Variables:
+         BILLING_EMAIL: !Ref BillingContactEmail
+         BILLING_CONTACT_NAME: !Ref BillingContactName
+         BILLING_CONTACT_TITLE: !Ref BillingContactTitle
+         BILLING_CONTACT_PHONE: !Ref BillingContactPhone
+         OPERATIONS_EMAIL: !Ref OperationsContactEmail
+         OPERATIONS_CONTACT_NAME: !Ref OperationsContactName
+         OPERATIONS_CONTACT_TITLE: !Ref OperationsContactTitle
+         OPERATIONS_CONTACT_PHONE: !Ref OperationsContactPhone
+         SECURITY_EMAIL: !Ref SecurityContactEmail
+         SECURITY_CONTACT_NAME: !Ref SecurityContactName
+         SECURITY_CONTACT_TITLE: !Ref SecurityContactTitle
+         SECURITY_CONTACT_PHONE: !Ref SecurityContactPhone
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - !Ref AccountContactBootstrapPermissionPolicy
+  
+  OrgAccountCreateEventBridgeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Fn::Join:
+            - ''
+            - - 'arn:'
+              - Ref: AWS::Partition
+              - ':events:us-east-1:'
+              - Ref: AWS::AccountId
+              - :event-bus/default
+      EventPattern:   
+        source:
+          - aws.organizations
+        detail-type:
+          - AWS Service Event via CloudTrail
+        detail:
+          eventName:
+            - CreateAccountResult
+          serviceEventDetails:
+            createAccountStatus:
+              state:
+                - SUCCEEDED
+      State: ENABLED
+      Targets: 
+        - Arn:
+            Fn::GetAtt:
+              - OrgCreateAccountContactBootstrapFunction
+              - Arn
+          Id: OrgAccountCreateLambdaTarget
+    Condition: organizationsEvent
+
+  OrgAccountCreateEventBridgeRuleTargetInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - OrgCreateAccountContactBootstrapFunction
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - OrgAccountCreateEventBridgeRule
+          - Arn
+    Condition: organizationsEvent
+  
+  ControlTowerAccountCreateEventBridgeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Fn::Join:
+            - ''
+            - - 'arn:'
+              - Ref: AWS::Partition
+              - ':events:us-east-1:'
+              - Ref: AWS::AccountId
+              - :event-bus/default
+      EventPattern:   
+        source:
+          - aws.controltower
+        detail-type:
+          - AWS Service Event via CloudTrail
+        detail:
+          eventName:
+            - CreateManagedAccount
+          serviceEventDetails:
+            createManagedAccountStatus:
+              state:
+                - SUCCEEDED
+      State: ENABLED
+      Targets: 
+        - Arn:
+            Fn::GetAtt:
+              - OrgCreateAccountContactBootstrapFunction
+              - Arn
+          Id: ControlTowerAccountCreateLambdaTarget
+    Condition: ControlTowerEvent
+
+  ControlTowerCreateEventBridgeRuleTargetInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - OrgCreateAccountContactBootstrapFunction
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - ControlTowerAccountCreateEventBridgeRule
+          - Arn
+    Condition: ControlTowerEvent
+  
+
