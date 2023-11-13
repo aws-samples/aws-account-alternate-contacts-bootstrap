@@ -60,7 +60,7 @@ Resources:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Action: 
+            Action:
               - account:PutAlternateContact
             Resource:
               - Fn::Join:
@@ -69,8 +69,8 @@ Resources:
                       - Ref: AWS::Partition
                       - ":account::"
                       - Ref: AWS::AccountId
-                      - ":account/o-*/*" 
-  
+                      - ":account/o-*/*"
+
   OrgCreateAccountContactBootstrapLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -78,11 +78,11 @@ Resources:
       RetentionInDays: 7
 
   OrgCreateAccountContactBootstrapFunction:
-    Type: AWS::Serverless::Function 
+    Type: AWS::Serverless::Function
     Properties:
       CodeUri: account_contact_bootstrap
       Handler: create_account_event/handle_create_account_event.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.10
       MemorySize: 128
       Timeout: 300
       Environment:
@@ -102,7 +102,7 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - !Ref AccountContactBootstrapPermissionPolicy
-  
+
   OrgAccountCreateEventBridgeRule:
     Type: AWS::Events::Rule
     Properties:
@@ -114,7 +114,7 @@ Resources:
               - ':events:us-east-1:'
               - Ref: AWS::AccountId
               - :event-bus/default
-      EventPattern:   
+      EventPattern:
         source:
           - aws.organizations
         detail-type:
@@ -127,7 +127,7 @@ Resources:
               state:
                 - SUCCEEDED
       State: ENABLED
-      Targets: 
+      Targets:
         - Arn:
             Fn::GetAtt:
               - OrgCreateAccountContactBootstrapFunction
@@ -149,7 +149,7 @@ Resources:
           - OrgAccountCreateEventBridgeRule
           - Arn
     Condition: organizationsEvent
-  
+
   ControlTowerAccountCreateEventBridgeRule:
     Type: AWS::Events::Rule
     Properties:
@@ -161,7 +161,7 @@ Resources:
               - ':events:us-east-1:'
               - Ref: AWS::AccountId
               - :event-bus/default
-      EventPattern:   
+      EventPattern:
         source:
           - aws.controltower
         detail-type:
@@ -174,7 +174,7 @@ Resources:
               state:
                 - SUCCEEDED
       State: ENABLED
-      Targets: 
+      Targets:
         - Arn:
             Fn::GetAtt:
               - OrgCreateAccountContactBootstrapFunction
@@ -196,5 +196,5 @@ Resources:
           - ControlTowerAccountCreateEventBridgeRule
           - Arn
     Condition: ControlTowerEvent
-  
+
 
