@@ -82,7 +82,7 @@ Resources:
     Properties:
       CodeUri: account_contact_bootstrap
       Handler: create_account_event/handle_create_account_event.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.11
       MemorySize: 128
       Timeout: 300
       Environment:
